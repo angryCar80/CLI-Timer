@@ -45,21 +45,40 @@ int main() {
     if (read(STDIN_FILENO, &c, 1) != 1)
       continue;
 
+    // Quit
     if (c == 'q')
       break;
 
+    // ENTER key
+    if (c == '\r') {
+      clearScreen();
+      std::cout << "You selected: " << options[selected] << "\n";
+      break;
+    }
+
+    // Arrow keys
     if (c == '\x1b') {
       char seq[2];
-      read(STDIN_FILENO, &seq[0], 1);
-      read(STDIN_FILENO, &seq[1], 1);
+      if (read(STDIN_FILENO, &seq[0], 1) != 1)
+        continue;
+      if (read(STDIN_FILENO, &seq[1], 1) != 1)
+        continue;
 
       if (seq[0] == '[') {
-        if (seq[1] == 'A' && selected > 0)
-          selected--;
-        else if (seq[1] == 'B' && selected < options.size() - 1)
-          selected++;
+        if (seq[1] == 'A' && selected > 0) {
+          selected--; // up
+        } else if (seq[1] == 'B' && selected < options.size() - 1) {
+          selected++; // down
+        }
       }
+      continue;
     }
+
+    // Vim-style keys
+    if (c == 'j' && selected < options.size() - 1)
+      selected++;
+    else if (c == 'k' && selected > 0)
+      selected--;
   }
 
   disableRawMode();
