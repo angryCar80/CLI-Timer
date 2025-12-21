@@ -1,49 +1,67 @@
-#include <map>
-#define green "\e[0;32m"
-#define reset "\e[0;37m"
-
-#include <cstdio>
 #include <iostream>
-#include <string.h>
+#include <string>
 #include <termios.h>
 #include <unistd.h>
+#include <vector>
+
+#define green "\033[92m"
+#define reset "\033[0m"
 
 struct termios orig_termios;
 
-void disableRawMode() {
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
-    perror("tcsetattr");
-  }
-}
+void disableRawMode() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios); }
 
 void enableRawMode() {
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
-    perror("tcsetattr");
-  }
+  tcgetattr(STDIN_FILENO, &orig_termios);
+  atexit(disableRawMode);
 
   struct termios raw = orig_termios;
-
-  // raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-  raw.c_oflag &= ~(OPOST);
-  raw.c_cflag |= (CS8);
-  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  raw.c_cc[VMIN] = 0;
-  raw.c_cc[VTIME] = 1;
+  raw.c_lflag &= ~(ECHO | ICANON | ISIG);
+  raw.c_iflag &= ~(ICRNL | IXON);
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
+void clearScreen() { std::cout << "\x1b[2J\x1b[H"; }
+
 int main() {
-  std::cout << green << "=== Welcome to the timer ===\n" << reset;
-  std::map<std::string, int> options;
+  enableRawMode();
 
-  options["Seconds"] = 0;
-  options["Minutes"] = 1;
-  options["Houres"] = 2;
+  std::vector<std::string> options = {"Seconds", "Minuts", "Houres"};
 
-  std::cout << "Counting Options: \n";
-  std::cout << green << "> " << reset;
-  for (const auto &option : options) {
-    std::cout << option.first << "\n";
+  int selected = 0;
+
+  while (true) {
+    clearScreen();
+
+    for (int i = 0; i < options.size(); i++) {
+      if (i == selected) {
+        std::cout << green << "> " << options[i] << reset << "\n";
+      } else {
+        std::cout << "  " << options[i] << "\n";
+      }
+    }
+
+    char c;
+    if (read(STDIN_FILENO, &c, 1) != 1)
+      continue;
+
+    if (c == 'q')
+      break;
+
+    if (c == '\x1b') {
+      char seq[2];
+      read(STDIN_FILENO, &seq[0], 1);
+      read(STDIN_FILENO, &seq[1], 1);
+
+      if (seq[0] == '[') {
+        if (seq[1] == 'A' && selected > 0)
+          selected--;
+        else if (seq[1] == 'B' && selected < options.size() - 1)
+          selected++;
+      }
+    }
   }
 
+  disableRawMode();
   return 0;
 }
