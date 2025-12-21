@@ -49,13 +49,6 @@ int main() {
     if (c == 'q')
       break;
 
-    // ENTER key
-    if (c == '\r') {
-      clearScreen();
-      std::cout << "You selected: " << options[selected] << "\n";
-      break;
-    }
-
     // Arrow keys
     if (c == '\x1b') {
       char seq[2];
@@ -79,6 +72,16 @@ int main() {
       selected++;
     else if (c == 'k' && selected > 0)
       selected--;
+    // ENTER key
+    if (c == '\r') {
+      clearScreen();
+      disableRawMode();
+      int timecount = 0;
+      std::cout << "You selected: " << options[selected] << "\n";
+      std::cout << "How many " << options[selected] << ": ";
+      std::cin >> timecount;
+      break;
+    }
   }
 
   disableRawMode();
