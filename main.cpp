@@ -1,3 +1,4 @@
+#include <cstdlib>
 #define MINIAUDIO_IMPLEMENTATION
 #include <chrono>
 #include <iostream>
@@ -28,17 +29,19 @@ void progressBar() {
       else
         std::cout << " ";
     }
-    std::cout << "] " << int(progress * 100.0) << " %\r";
+    std::cout << "] " << int(progress * 100.0) + 1 << " %\r";
     std::cout.flush();
 
-    progress += 0.10; // for demonstration only
+    progress += 0.01; // for demonstration only
+    std::this_thread::sleep_for(std::chrono::milliseconds(
+        100)); // Add delay to see progress more clearly
   }
   std::cout << std::endl;
 }
 
-void wait() {
+void wait(int amount) {
   auto start = std::chrono::steady_clock::now();
-  std::this_thread::sleep_for(std::chrono::seconds(3));
+  std::this_thread::sleep_for(std::chrono::seconds(amount));
   auto end = std::chrono::steady_clock::now();
 }
 
@@ -68,7 +71,7 @@ int main() {
   enableRawMode();
 
   std::vector<std::string> options = {"Seconds", "Minutes", "Houres"};
-  std::vector<std::string> afteroptions = {"Get To Home", "Quit"};
+  std::vector<std::string> afteroptions = {"Get To Home", "Repeat"};
 
   int selected = 0;
   int anotherselected = 0;
@@ -94,7 +97,8 @@ int main() {
       break;
 
     // Arrow keys
-    if (c == '\x1b') {
+
+    if (c == '\x1b') { // This starts the escape sequence
       char seq[2];
       if (read(STDIN_FILENO, &seq[0], 1) != 1)
         continue;
@@ -102,13 +106,13 @@ int main() {
         continue;
 
       if (seq[0] == '[') {
-        if (seq[1] == 'A' && selected > 0) {
-          selected--; // up
-        } else if (seq[1] == 'B' && selected < options.size() - 1) {
-          selected++; // down
+        if (seq[1] == 'A' && selected > 0) { // up arrow
+          selected--;
+        } else if (seq[1] == 'B' &&
+                   selected < options.size() - 1) { // down arrow
+          selected++;
         }
       }
-      continue;
     }
 
     // Vim-style keys
@@ -123,6 +127,7 @@ int main() {
       std::cout << "You selected: " << options[selected] << "\n";
       std::cout << "How many " << options[selected] << ": ";
       std::cin >> timecount;
+      // progressBar();
       // STARTING TIMER
       auto start = std::chrono::steady_clock::now();
       if (selected == 0) {
@@ -138,45 +143,61 @@ int main() {
 
       std::cout << "TIMER END: " << elasped_time.count() << options[selected]
                 << "passed";
-      ma_engine_play_sound(&engine, "sound.mp3", NULL);
-      progressBar();
-      wait(); // The have time to check
+      ma_engine_play_sound(&engine, "sound.mp3", nullptr);
+      if (result != MA_SUCCESS) {
+        std::cout << "Failed to play sound: " << ma_result_description(result)
+                  << std::endl;
+      }
+      wait(5); // The have time to check
       enableRawMode();
+
       while (true) {
         clearScreen();
         for (int i = 0; i < afteroptions.size(); ++i) {
-          if (i == selected) {
+          if (i == anotherselected) {
             std::cout << green << "> " << afteroptions[i] << reset << "\n";
           } else {
-            std::cout << " " << afteroptions[i] << "\n";
+            std::cout << "  " << afteroptions[i] << "\n";
           }
         }
+
         char ca;
-        if (read(STDIN_FILENO, &ca, 1)) {
+        if (read(STDIN_FILENO, &ca, 1) != 1)
           continue;
+
+        if (ca == 'q') { // Quit if 'q' is pressed
+          break;
         }
-        if (c == '\x1b') {
+
+        if (ca == '\x1b') {
           char seq[2];
-          if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+          if (read(STDIN_FILENO, &seq[0], 1) != 1)
             continue;
-          }
-          if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+          if (read(STDIN_FILENO, &seq[1], 1) != 1)
             continue;
-          }
+
           if (seq[0] == '[') {
-            if (seq[1] == 'A' && anotherselected > 0) {
+            if (seq[1] == 'A' && anotherselected > 0) { // up arrow
               anotherselected--;
-            } else if (seq[1] == 'B' &&
-                       anotherselected < afteroptions.size() - 1) {
+            } else if (seq[1] == 'B' && anotherselected < afteroptions.size() -
+                                                              1) { // down arrow
               anotherselected++;
             }
           }
-          continue;
-        }
-        if (c == 'j' && anotherselected < afteroptions.size() - 1) {
+        } else if (ca == 'j' && anotherselected < afteroptions.size() -
+                                                      1) { // Down (Vim-style)
           anotherselected++;
-        } else if (c == 'k' && anotherselected > 0) {
+        } else if (ca == 'k' && anotherselected > 0) { // Up (Vim-style)
           anotherselected--;
+        } else if (ca == '\r') {
+          if (anotherselected == 0) {
+            std::cout << "Returning to Home...\n";
+            // Reset logic or exit here if needed
+            break;
+          } else if (anotherselected == 1) {
+            std::cout << "Bro I dont know how to do it code it your self\n";
+            wait(3);
+          }
         }
       }
     }
