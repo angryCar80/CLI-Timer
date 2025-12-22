@@ -1,5 +1,7 @@
+#define MINIAUDIO_IMPLEMENTATION
 #include <chrono>
 #include <iostream>
+#include <miniaudio/miniaudio.h>
 #include <string>
 #include <termios.h>
 #include <thread>
@@ -11,9 +13,32 @@
 
 struct termios orig_termios;
 
+void progressBar() {
+  float progress = 0.0; // the value
+  while (progress < 1.0) {
+    int barWidth = 70;
+
+    std::cout << "[";
+    int pos = barWidth * progress;
+    for (int i = 0; i < barWidth; ++i) {
+      if (i < pos)
+        std::cout << "=";
+      else if (i == pos)
+        std::cout << ">";
+      else
+        std::cout << " ";
+    }
+    std::cout << "] " << int(progress * 100.0) << " %\r";
+    std::cout.flush();
+
+    progress += 0.10; // for demonstration only
+  }
+  std::cout << std::endl;
+}
+
 void wait() {
   auto start = std::chrono::steady_clock::now();
-  std::this_thread::sleep_for(std::chrono::seconds(15));
+  std::this_thread::sleep_for(std::chrono::seconds(3));
   auto end = std::chrono::steady_clock::now();
 }
 
@@ -32,11 +57,21 @@ void enableRawMode() {
 void clearScreen() { std::cout << "\x1b[2J\x1b[H"; }
 
 int main() {
+  ma_result result;
+  ma_engine engine;
+
+  result = ma_engine_init(NULL, &engine);
+  if (result != MA_SUCCESS) {
+    printf("Failed to initialize audio engine.\n");
+    return -1;
+  }
   enableRawMode();
 
   std::vector<std::string> options = {"Seconds", "Minutes", "Houres"};
+  std::vector<std::string> afteroptions = {"Get To Home", "Quit"};
 
   int selected = 0;
+  int anotherselected = 0;
   int timecount = 0;
 
   while (true) {
@@ -103,11 +138,49 @@ int main() {
 
       std::cout << "TIMER END: " << elasped_time.count() << options[selected]
                 << "passed";
-      // wait();
+      ma_engine_play_sound(&engine, "sound.mp3", NULL);
+      progressBar();
+      wait(); // The have time to check
       enableRawMode();
+      while (true) {
+        clearScreen();
+        for (int i = 0; i < afteroptions.size(); ++i) {
+          if (i == selected) {
+            std::cout << green << "> " << afteroptions[i] << reset << "\n";
+          } else {
+            std::cout << " " << afteroptions[i] << "\n";
+          }
+        }
+        char ca;
+        if (read(STDIN_FILENO, &ca, 1)) {
+          continue;
+        }
+        if (c == '\x1b') {
+          char seq[2];
+          if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+            continue;
+          }
+          if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+            continue;
+          }
+          if (seq[0] == '[') {
+            if (seq[1] == 'A' && anotherselected > 0) {
+              anotherselected--;
+            } else if (seq[1] == 'B' &&
+                       anotherselected < afteroptions.size() - 1) {
+              anotherselected++;
+            }
+          }
+          continue;
+        }
+        if (c == 'j' && anotherselected < afteroptions.size() - 1) {
+          anotherselected++;
+        } else if (c == 'k' && anotherselected > 0) {
+          anotherselected--;
+        }
+      }
     }
   }
-
   disableRawMode();
   return 0;
 }
