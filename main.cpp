@@ -60,17 +60,19 @@ void enableRawMode() {
 void clearScreen() { std::cout << "\x1b[2J\x1b[H"; }
 
 int main() {
-  ma_result result;
   ma_engine engine;
+  ma_result result =
+      ma_engine_init(NULL, &engine); // Initialize the audio engine
 
-  result = ma_engine_init(NULL, &engine);
   if (result != MA_SUCCESS) {
-    printf("Failed to initialize audio engine.\n");
+    printf("Failed to initialize audio engine: %s\n",
+           ma_result_description(result));
     return -1;
   }
+
   enableRawMode();
 
-  std::vector<std::string> options = {"Seconds", "Minutes", "Houres"};
+  std::vector<std::string> options = {"Seconds", "Minutes", "Hours"};
   std::vector<std::string> afteroptions = {"Get To Home", "Repeat"};
 
   int selected = 0;
@@ -92,12 +94,11 @@ int main() {
     if (read(STDIN_FILENO, &c, 1) != 1)
       continue;
 
-    // Quit
+    // Quit if 'q' is pressed
     if (c == 'q')
       break;
 
-    // Arrow keys
-
+    // Arrow keys for navigation
     if (c == '\x1b') { // This starts the escape sequence
       char seq[2];
       if (read(STDIN_FILENO, &seq[0], 1) != 1)
@@ -115,20 +116,21 @@ int main() {
       }
     }
 
-    // Vim-style keys
+    // Vim-style keys for navigation
     if (c == 'j' && selected < options.size() - 1)
       selected++;
     else if (c == 'k' && selected > 0)
       selected--;
-    // ENTER key
+
+    // ENTER key to proceed with the selected option
     if (c == '\r') {
       clearScreen();
       disableRawMode();
       std::cout << "You selected: " << options[selected] << "\n";
       std::cout << "How many " << options[selected] << ": ";
       std::cin >> timecount;
-      // progressBar();
-      // STARTING TIMER
+
+      // Starting the timer
       auto start = std::chrono::steady_clock::now();
       if (selected == 0) {
         std::this_thread::sleep_for(std::chrono::seconds(timecount));
@@ -139,18 +141,25 @@ int main() {
       }
       auto end = std::chrono::steady_clock::now();
 
-      std::chrono::duration<float> elasped_time = end - start;
+      std::chrono::duration<float> elapsed_time = end - start;
 
-      std::cout << "TIMER END: " << elasped_time.count() << options[selected]
-                << "passed";
-      ma_engine_play_sound(&engine, "sound.mp3", nullptr);
+      std::cout << "TIMER END: " << elapsed_time.count() << " "
+                << options[selected] << " passed\n";
+
+      // Play the sound
+      result = ma_engine_play_sound(&engine, "sound.mp3",
+                                    nullptr); // Corrected path
       if (result != MA_SUCCESS) {
         std::cout << "Failed to play sound: " << ma_result_description(result)
-                  << std::endl;
+                  << "\n";
       }
-      wait(5); // The have time to check
+
+      ma_engine_node(); // Ensure the engine updates to process the sound
+
+      wait(5); // Allow time to check sound
       enableRawMode();
 
+      // After timer ends, show options
       while (true) {
         clearScreen();
         for (int i = 0; i < afteroptions.size(); ++i) {
@@ -192,10 +201,9 @@ int main() {
         } else if (ca == '\r') {
           if (anotherselected == 0) {
             std::cout << "Returning to Home...\n";
-            // Reset logic or exit here if needed
             break;
           } else if (anotherselected == 1) {
-            std::cout << "Bro I dont know how to do it code it your self\n";
+            std::cout << "Bro, I don't know how to do it, code it yourself\n";
             wait(3);
           }
         }
