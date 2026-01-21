@@ -9,8 +9,10 @@
 #include <unistd.h>
 #include <vector>
 
+// adding colors to the TUI tool
 #define green "\033[92m"
 #define reset "\033[0m"
+#define cyan "\e[0;36m"
 
 struct termios orig_termios;
 
@@ -91,20 +93,24 @@ int main() {
     }
 
     char c;
-    if (read(STDIN_FILENO, &c, 1) != 1)
+    if (read(STDIN_FILENO, &c, 1) != 1) {
       continue;
+    }
 
     // Quit if 'q' is pressed
-    if (c == 'q')
+    if (c == 'q') {
       break;
+    }
 
     // Arrow keys for navigation
     if (c == '\x1b') { // This starts the escape sequence
       char seq[2];
-      if (read(STDIN_FILENO, &seq[0], 1) != 1)
+      if (read(STDIN_FILENO, &seq[0], 1) != 1) {
         continue;
-      if (read(STDIN_FILENO, &seq[1], 1) != 1)
+      }
+      if (read(STDIN_FILENO, &seq[1], 1) != 1) {
         continue;
+      }
 
       if (seq[0] == '[') {
         if (seq[1] == 'A' && selected > 0) { // up arrow
@@ -117,17 +123,19 @@ int main() {
     }
 
     // Vim-style keys for navigation
-    if (c == 'j' && selected < options.size() - 1)
+    if (c == 'j' && selected < options.size() - 1) {
       selected++;
-    else if (c == 'k' && selected > 0)
+    } else if (c == 'k' && selected > 0) {
       selected--;
+    }
 
     // ENTER key to proceed with the selected option
     if (c == '\r') {
       clearScreen();
       disableRawMode();
-      std::cout << "You selected: " << options[selected] << "\n";
-      std::cout << "How many " << options[selected] << ": ";
+      std::cout << cyan << "You selected: " << options[selected] << reset
+                << "\n";
+      std::cout << green << "How many " << options[selected] << ": " << reset;
       std::cin >> timecount;
 
       // Starting the timer
@@ -153,8 +161,6 @@ int main() {
         std::cout << "Failed to play sound: " << ma_result_description(result)
                   << "\n";
       }
-
-      ma_engine_node(); // Ensure the engine updates to process the sound
 
       wait(5); // Allow time to check sound
       enableRawMode();
@@ -199,11 +205,18 @@ int main() {
         } else if (ca == 'k' && anotherselected > 0) { // Up (Vim-style)
           anotherselected--;
         } else if (ca == '\r') {
-          if (anotherselected == 0) {
+          if (anotherselected == 0) { // Home option
             std::cout << "Returning to Home...\n";
             break;
-          } else if (anotherselected == 1) {
-            std::cout << "Bro, I don't know how to do it, code it yourself\n";
+          } else if (anotherselected == 1) { // Repeat option
+            std::cout
+                << "Bro, I don't know how to do it, code it yourself\n"; // BRUH
+                                                                         // JK
+                                                                         // AM
+                                                                         // COMING
+                                                                         // BACK
+                                                                         // TO
+                                                                         // THIS
             wait(3);
           }
         }
